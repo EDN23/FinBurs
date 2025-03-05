@@ -1,28 +1,36 @@
 # -*- coding: utf-8 -*-
 """
-Created on Fri Feb 28 22:13:00 2025
+Created on Mon Feb 24 10:55:34 2025
 
 @author: edson
 """
 
+import yfinance as yf
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-# Cargar datos
-df = pd.read_csv("/Users/edson/iCloudDrive/Octavo Semestre/Portafolios de inversión/Libro1.csv")
+#Seleccionar los tickers y las fechas que vamos a utilizar
+tickers = ["GOOG","JPM"]
+start = "2020-02-25"
+end = "2025-02-25"
 
-# Limpiar y convertir datos
-df["IPyC"] = df["IPyC"].str.replace(",", "").str.strip()
-df["IPyC"] = pd.to_numeric(df["IPyC"], errors="coerce")  # Manejo de errores
+#Descargar  el
+df = yf.download(tickers,start,end)["Close"].round(4)
+df.index = df.index.strftime('%Y-%m-%d')
 
-# Convertir Fecha a índice
-df = df.set_index("Fecha")
-df = df.drop("IPyC", axis=1)
+#Vamos a contar cuentos Nan hay por columna 
+nan_columna = df.isna().sum()
 
-# Eliminar NaN
-df.dropna(inplace=True)
+print(nan_columna)
+
+df1 = df.dropna()
+nan_df1 = df1.isna().sum()
+print(nan_df1)
+print("=====================================")
+
+
 
 # Calcular rendimientos aritméticos
 retornos = df.pct_change().dropna().round(4)
@@ -41,13 +49,20 @@ riesgo_anual_porc = round(riesgo_anual*100,2)
 print("Los rendimientos esperados anualizados de cada activo son:")
 for activo, rendimiento in retornos_esp_anuales_porc.items():
     print(f"{activo}: {rendimiento}%")
+print("=====================================")
+
     
 print("Los riesgos anualizados de cada activo son:")
 for activo, riesgo in riesgo_anual_porc.items():
     print(f"{activo}: {riesgo}%")
 
+
+#Obtenemos e imprimimos los coeficientes de variacion
 coef_var = round(riesgo_anual/retornos_esp_anuales,2)
-print(f"Los coeficientes de variacion son: \n{coef_var}")
+print("=====================================")
+print("Los coeficientes de variacion son:")
+for activo, coef in coef_var.items():
+    print(f"{activo}:{coef}")
 
 #Obtener la matriz de covarianzas
 matriz_cov = retornos.cov()
@@ -57,6 +72,7 @@ plt.figure(figsize=(8,6))
 sns.heatmap(matriz_cov, annot=True, fmt=".5f", cmap="coolwarm", linewidths=0.5)
 plt.title("Matriz de Covarianza")
 plt.show()
+
 
 #Ahora hay que asignar pesos a los activos
 def generar_pesos(n):
@@ -117,7 +133,7 @@ optimizacion = minimize(objetivo,
 #Resultados
 pesos_optimos = optimizacion.x
 rendimiento_optimo = rendimiento(pesos_optimos, retornos_esp_anuales)
-riesgo_optimo = riesgo(pesos_optimos, matriz_cov)
+riesgo_optimo = riesgo(pesos_optimos, matriz_cov)*252**(1/2)
 
 print("\nPesos Óptimos:")
 for activo, peso in zip(retornos_esp_anuales.index, pesos_optimos):
@@ -143,7 +159,7 @@ for _ in range(num_simulaciones):
     pesos /= np.sum(pesos)  # Normalizar para que sumen 1
     
     rendimiento_p = np.sum(pesos * retornos_esp_anuales)
-    riesgo_p = np.sqrt(np.dot(pesos.T, np.dot(matriz_cov, pesos)))
+    riesgo_p = np.sqrt(np.dot(pesos.T, np.dot(matriz_cov, pesos))) * np.sqrt(252)
     sharpe_p = rendimiento_p / riesgo_p  # Tasa libre de riesgo = 0%
 
     rendimientos_sim.append(rendimiento_p)
@@ -187,13 +203,3 @@ for activo, peso in zip(retornos_esp_anuales.index, pesos_max_sharpe):
 print("\nPesos del Portafolio de Mínima Varianza:")
 for activo, peso in zip(retornos_esp_anuales.index, pesos_min_varianza):
     print(f"{activo}: {peso:.4f}")
-
-
-
-
-
-
-
-
-
-
